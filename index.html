@@ -635,12 +635,8 @@
 
     // ── API Key 管理 ──
     const STORAGE_KEY = 'ai_summary_apikey';
-    let apiKey = localStorage.getItem(STORAGE_KEY) || '';
-
-    // 页面加载时若没有 key，弹窗提示
-    if (!apiKey) {
-      setTimeout(showSettings, 600);
-    }
+    const DEFAULT_KEY = 'sk-7f8dceda8c2745978b0f47930b9dd011';
+    let apiKey = localStorage.getItem(STORAGE_KEY) || DEFAULT_KEY;
 
     // ── 设置弹窗 ──
     function showSettings() {
