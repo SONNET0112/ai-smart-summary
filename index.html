@@ -988,7 +988,7 @@
         }
 
         const aiData = await aiRes.json();
-        const summary = aiData.choices?.[0]?.message?.content || '(AI 返回了空结果)');
+        const summary = aiData.choices?.[0]?.message?.content || '(AI 返回了空结果)';
 
         resultInner.innerHTML = summary
           .replace(/\n/g, '<br>')
