@@ -977,12 +977,14 @@
 
         if (!aiRes.ok) {
           const errData = await aiRes.json().catch(() => ({}));
+          let errMsg = errData.error?.message || `HTTP ${aiRes.status}`;
           if (aiRes.status === 401) {
-            localStorage.removeItem(STORAGE_KEY);
-            apiKey = '';
-            throw new Error('API Key 无效，请重新设置');
+            errMsg = 'Key 无效或余额不足，请重新设置';
           }
-          throw new Error(`DeepSeek API 请求失败 (HTTP ${aiRes.status}): ${errData.error?.message || '未知错误'}`);
+          resultInner.innerHTML = `❌ ${errMsg}<br><br><button class="settings-btn save" onclick="document.querySelector('.settings-trigger').click()" style="font-size:13px;height:34px;cursor:pointer">🔑 重新设置 Key</button>`;
+          resultInner.classList.add('error');
+          setLoading(false);
+          return;
         }
 
         const aiData = await aiRes.json();
