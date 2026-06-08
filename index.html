@@ -404,6 +404,28 @@
       }
     }
 
+    /* ── 模式切换按钮 ── */
+    .mode-toggle {
+      display: block;
+      margin: 12px auto 0;
+      padding: 6px 16px;
+      font-family: inherit;
+      font-size: 12.5px;
+      color: var(--text-secondary);
+      background: none;
+      border: 1px solid rgba(0,0,0,0.06);
+      border-radius: 16px;
+      cursor: pointer;
+      letter-spacing: 0.02em;
+      transition: all var(--transition);
+    }
+
+    .mode-toggle:hover {
+      color: var(--text-primary);
+      border-color: rgba(0,0,0,0.15);
+      background: rgba(0,0,0,0.02);
+    }
+
     /* ── 设置按钮（右上角）── */
     .settings-trigger {
       position: fixed;
@@ -695,10 +717,73 @@
       }
     }
 
+    // ── 模式切换（URL / 文本）──
+    let inputMode = 'url'; // 'url' | 'text'
+    const modeToggle = document.createElement('button');
+    modeToggle.className = 'mode-toggle';
+    modeToggle.textContent = '✎ 直接粘贴文本';
+    modeToggle.addEventListener('click', () => {
+      if (inputMode === 'url') {
+        inputMode = 'text';
+        urlInput.placeholder = '请在此粘贴需要总结的文字内容…';
+        urlInput.type = 'text';
+        urlInput.removeAttribute('type');
+        urlInput.style.paddingRight = '18px';
+        clearBtn.style.display = 'none';
+        modeToggle.textContent = '🔗 输入链接';
+        document.querySelector('.icon-left svg').innerHTML = `<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>`;
+      } else {
+        inputMode = 'url';
+        urlInput.placeholder = '请在此粘贴视频或网页链接…';
+        urlInput.type = 'url';
+        urlInput.style.paddingRight = '48px';
+        clearBtn.style.display = '';
+        modeToggle.textContent = '✎ 直接粘贴文本';
+        document.querySelector('.icon-left svg').innerHTML = `<circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.35-4.35"></path><path d="M8 7v4m0 0v4m0-4H4m4 0h4" stroke-width="1.2" opacity="0.5"></path>`;
+      }
+      urlInput.value = '';
+      resultArea.classList.remove('active');
+      urlInput.focus();
+    });
+    document.querySelector('.input-group').insertAdjacentElement('afterend', modeToggle);
+
+    // ── CDP 抓取（本地兜底）──
+    async function fetchViaCDP(url) {
+      const proxyUrl = 'http://localhost:3456';
+      // 检查 CDP Proxy 是否可用
+      try {
+        const health = await fetch(`${proxyUrl}/health`);
+        if (!health.ok) return null;
+      } catch { return null; }
+
+      // 打开新 tab
+      const tabRes = await fetch(`${proxyUrl}/new`, {
+        method: 'POST',
+        body: url
+      });
+      const { targetId } = await tabRes.json();
+      if (!targetId) return null;
+
+      // 等待页面加载
+      await new Promise(r => setTimeout(r, 5000));
+
+      // 提取文本
+      const textRes = await fetch(`${proxyUrl}/eval?target=${targetId}`, {
+        method: 'POST',
+        body: 'document.body.innerText'
+      });
+      const { value: text } = await textRes.json();
+
+      // 关闭 tab
+      await fetch(`${proxyUrl}/close?target=${targetId}`);
+
+      return text || null;
+    }
+
     // ── 核心：抓取 + 总结 ──
     submitBtn.addEventListener('click', async () => {
-      const url = urlInput.value.trim();
-      if (!url) {
+      const rawInput = urlInput.value.trim();
+      if (!rawInput) {
         urlInput.focus();
         urlInput.style.borderColor = 'rgba(192, 57, 43, 0.3)';
         urlInput.style.boxShadow = '0 0 0 4px rgba(192, 57, 43, 0.05)';
@@ -713,36 +798,63 @@
 
       setLoading(true);
       resultInner.classList.remove('error');
+      resultArea.classList.add('active');
 
       try {
-        // 第一步：通过 Jina 抓取页面内容
-        resultInner.textContent = '⏳ 正在抓取页面内容…';
-        resultArea.classList.add('active');
+        let content;
 
-        const jinaUrl = `https://r.jina.ai/${url}`;
-        const jinaRes = await fetch(jinaUrl, {
-          headers: { 'Accept': 'text/markdown' }
-        });
+        if (inputMode === 'text') {
+          // 直接使用用户粘贴的文本
+          resultInner.textContent = '🤖 正在 AI 智能总结…';
+          content = rawInput;
+        } else {
+          // ── URL 模式：Jina → CDP 双层兜底 ──
+          resultInner.textContent = '⏳ 正在通过 Jina 抓取页面内容…';
 
-        if (!jinaRes.ok) {
-          throw new Error(`页面抓取失败 (HTTP ${jinaRes.status})`);
+          const jinaUrl = `https://r.jina.ai/${rawInput}`;
+          const jinaRes = await fetch(jinaUrl, {
+            headers: { 'Accept': 'text/markdown' }
+          });
+
+          let rawContent = '';
+          if (jinaRes.ok) {
+            rawContent = await jinaRes.text();
+          }
+
+          // 判断 Jina 结果是否有效
+          const poorPatterns = [
+            '你要观看的视频不存在', '页面不存在', '内容不存在',
+            '请打开抖音', '打开APP', '下载APP', '打开 App',
+            'download the app', 'get the app'
+          ];
+          const isPoor = !rawContent || rawContent.length < 100 ||
+            poorPatterns.some(p => rawContent.includes(p));
+
+          if (isPoor) {
+            resultInner.textContent = '⏳ Jina 被反爬拦截，尝试 CDP 浏览器直连…';
+
+            const cdpContent = await fetchViaCDP(rawInput);
+            if (cdpContent && cdpContent.length > 100) {
+              rawContent = cdpContent;
+            } else {
+              throw new Error(
+                '该网站屏蔽了自动抓取（Jina + CDP 均失败）。\n\n' +
+                '💡 建议：点击输入框下方的「✎ 直接粘贴文本」，将视频标题/描述/评论区文字粘贴进来即可总结。'
+              );
+            }
+          }
+
+          resultInner.textContent = '🤖 正在 AI 智能总结…';
+
+          // 截断过长内容
+          const maxChars = 8000;
+          content = rawContent.length > maxChars
+            ? rawContent.slice(0, maxChars) + '\n\n[内容过长，已截断前 8000 字符]'
+            : rawContent;
         }
 
-        const rawContent = await jinaRes.text();
-        if (!rawContent || rawContent.length < 50) {
-          throw new Error('页面内容为空或过短，无法总结');
-        }
-
-        // 截断过长内容（token 成本控制，最多 8000 字符）
-        const maxChars = 8000;
-        const content = rawContent.length > maxChars
-          ? rawContent.slice(0, maxChars) + '\n\n[内容过长，已截断前 8000 字符]'
-          : rawContent;
-
-        resultInner.textContent = '🤖 正在 AI 智能总结…';
-
-        // 第二步：调用 Anthropic API 总结
-        const systemPrompt = `你是一个专业的内容总结助手。请根据提供的网页内容，用中文给出简洁清晰的总结。按以下格式输出：
+        // ── 调用 Anthropic API 总结 ──
+        const systemPrompt = `你是一个专业的内容总结助手。请根据提供的内容，用中文给出简洁清晰的总结。按以下格式输出：
 
 1. 📌 核心主题：一句话概括
 2. 📝 关键要点：用列表列出 3-5 个关键信息点
@@ -750,8 +862,8 @@
 4. 🏷 内容类型标签：用 2-3 个标签
 
 注意：
-- 如果内容是视频页面，根据标题、描述、评论等可用信息总结
-- 如果内容看起来不完整或混乱，如实说明
+- 如果内容是视频页面/社交媒体，根据标题、描述、评论等可用信息总结
+- 如果内容看起来不完整或混乱，如实说明，不要编造
 - 保持客观，不要添加原文没有的信息
 - 控制总字数在 300 字以内`;
 
@@ -768,7 +880,7 @@
             max_tokens: 600,
             system: systemPrompt,
             messages: [
-              { role: 'user', content: `以下是需要总结的网页内容：\n\n${content}` }
+              { role: 'user', content: `以下是需要总结的内容：\n\n${content}` }
             ]
           })
         });
@@ -786,19 +898,16 @@
         const aiData = await aiRes.json();
         const summary = aiData.content?.[0]?.text || '(AI 返回了空结果)';
 
-        // 显示结果
         resultInner.innerHTML = summary
           .replace(/\n/g, '<br>')
           .replace(/^(\d+\.\s)/gm, '<strong>$1</strong>');
         resultInner.classList.remove('error');
-        resultArea.classList.add('active');
         resultArea.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
       } catch (err) {
         console.error('总结失败:', err);
         resultInner.textContent = `❌ ${err.message}`;
         resultInner.classList.add('error');
-        resultArea.classList.add('active');
       } finally {
         setLoading(false);
       }
