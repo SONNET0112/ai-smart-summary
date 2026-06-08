@@ -492,6 +492,63 @@
       margin-bottom: 20px;
     }
 
+    .last-key-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(0,0,0,0.03);
+      border-radius: 12px;
+      padding: 12px 14px;
+      margin-bottom: 16px;
+    }
+
+    .last-key-label {
+      font-size: 13px;
+      color: var(--text-secondary);
+      flex-shrink: 0;
+    }
+
+    .last-key-masked {
+      font-size: 13px;
+      font-family: 'SF Mono', 'Consolas', monospace;
+      color: var(--text-primary);
+      flex: 1;
+      background: none;
+    }
+
+    .settings-btn.use-last {
+      background: none;
+      border: 1px solid rgba(0,0,0,0.12);
+      color: var(--text-primary);
+      font-size: 12.5px;
+      height: 32px;
+      padding: 0 14px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .settings-btn.use-last:hover {
+      background: rgba(0,0,0,0.05);
+      border-color: rgba(0,0,0,0.2);
+    }
+
+    .divider {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+      color: var(--text-tertiary);
+      font-size: 12px;
+    }
+
+    .divider::before,
+    .divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: rgba(0,0,0,0.06);
+    }
+
     .settings-input {
       width: 100%;
       height: 46px;
@@ -637,44 +694,69 @@
     const STORAGE_KEY = 'ai_summary_apikey';
     let apiKey = localStorage.getItem(STORAGE_KEY) || '';
 
-    // 页面加载时若没有 key，弹窗提示
+    // 有 Key 直接用；没有才弹窗
     if (!apiKey) {
-      setTimeout(showSettings, 600);
+      setTimeout(showSettings, 400);
     }
 
     // ── 设置弹窗 ──
-    function showSettings() {
+    function showSettings(prefill = '') {
       const existing = document.querySelector('.settings-overlay');
       if (existing) existing.remove();
+
+      const savedKey = localStorage.getItem(STORAGE_KEY) || '';
+      const masked = savedKey ? savedKey.slice(0, 5) + '…' + savedKey.slice(-4) : '';
+      const hasLast = !!masked;
 
       const overlay = document.createElement('div');
       overlay.className = 'settings-overlay';
       overlay.innerHTML = `
         <div class="settings-dialog">
           <h3>设置 API Key</h3>
-          <p>使用 DeepSeek API 进行智能总结。你的 Key 仅存储在浏览器本地，不会上传到任何服务器。</p>
-          <input type="password" class="settings-input" placeholder="sk-…" value="${apiKey}">
+          <p>使用 DeepSeek API 进行智能总结。Key 仅存储在浏览器本地。</p>
+          ${hasLast ? `
+            <div class="last-key-row">
+              <span class="last-key-label">上次使用：</span>
+              <code class="last-key-masked">${masked}</code>
+              <button class="settings-btn use-last">使用此 Key</button>
+            </div>
+            <div class="divider"><span>或输入新 Key</span></div>
+          ` : ''}
+          <input type="password" class="settings-input" placeholder="sk-…" value="${prefill}">
           <div class="settings-links">
             <a href="https://platform.deepseek.com/api_keys" target="_blank">获取 API Key ↗</a>
           </div>
           <div class="settings-actions">
             <button class="settings-btn cancel">取消</button>
-            <button class="settings-btn save">保存</button>
+            <button class="settings-btn save">保存并进入</button>
           </div>
         </div>
       `;
       document.body.appendChild(overlay);
 
       const input = overlay.querySelector('.settings-input');
+
+      // 一键使用上次 Key
+      const useLastBtn = overlay.querySelector('.use-last');
+      if (useLastBtn) {
+        useLastBtn.addEventListener('click', () => {
+          apiKey = savedKey;
+          overlay.remove();
+          urlInput.focus();
+        });
+      }
+
       overlay.querySelector('.save').addEventListener('click', () => {
-        apiKey = input.value.trim();
-        localStorage.setItem(STORAGE_KEY, apiKey);
-        overlay.remove();
-        if (apiKey) urlInput.focus();
+        const val = input.value.trim();
+        if (val) {
+          apiKey = val;
+          localStorage.setItem(STORAGE_KEY, val);
+          overlay.remove();
+          urlInput.focus();
+        }
       });
       overlay.querySelector('.cancel').addEventListener('click', () => {
         overlay.remove();
-        if (apiKey) urlInput.focus();
       });
       overlay.addEventListener('click', (e) => {
         if (e.target === overlay) overlay.remove();
