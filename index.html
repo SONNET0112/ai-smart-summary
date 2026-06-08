@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI 智能总结</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,200..800;1,9..40,200..800&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f5f5f7;
+      --card-bg: rgba(255, 255, 255, 0.72);
+      --card-border: rgba(0, 0, 0, 0.08);
+      --text-primary: #1d1d1f;
+      --text-secondary: #86868b;
+      --text-tertiary: #b0b0b8;
+      --input-bg: rgba(255, 255, 255, 0.65);
+      --input-border: rgba(0, 0, 0, 0.10);
+      --input-focus-border: rgba(0, 0, 0, 0.22);
+      --btn-bg: #1a1a1a;
+      --btn-hover: #2d2d2f;
+      --btn-text: #ffffff;
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04);
+      --shadow-md: 0 8px 32px rgba(0, 0, 0, 0.06);
+      --shadow-lg: 0 24px 60px rgba(0, 0, 0, 0.08);
+      --radius-sm: 14px;
+      --radius-md: 20px;
+      --radius-lg: 26px;
+      --transition: 0.28s cubic-bezier(0.25, 0.1, 0.25, 1);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'DM Sans', 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* Subtle ambient gradient orb */
+    .ambient-orb {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(180px);
+      pointer-events: none;
+      z-index: 0;
+    }
+    .orb-1 {
+      width: 620px;
+      height: 620px;
+      background: radial-gradient(circle, rgba(120, 130, 200, 0.10), transparent 70%);
+      top: -20%;
+      left: -10%;
+    }
+    .orb-2 {
+      width: 500px;
+      height: 500px;
+      background: radial-gradient(circle, rgba(180, 175, 160, 0.09), transparent 70%);
+      bottom: -15%;
+      right: -8%;
+    }
+    .orb-3 {
+      width: 340px;
+      height: 340px;
+      background: radial-gradient(circle, rgba(100, 120, 180, 0.07), transparent 70%);
+      top: 55%;
+      left: 55%;
+    }
+
+    /* Main container */
+    .wrapper {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 640px;
+      padding: 0 28px;
+    }
+
+    /* Glass card */
+    .card {
+      background: var(--card-bg);
+      backdrop-filter: blur(48px) saturate(160%);
+      -webkit-backdrop-filter: blur(48px) saturate(160%);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius-lg);
+      padding: 56px 48px 48px;
+      box-shadow: var(--shadow-sm), var(--shadow-md);
+      transition: box-shadow var(--transition);
+    }
+
+    .card:focus-within {
+      box-shadow: var(--shadow-sm), var(--shadow-lg);
+      border-color: rgba(0, 0, 0, 0.12);
+    }
+
+    /* Header */
+    .header {
+      text-align: center;
+      margin-bottom: 44px;
+    }
+
+    .badge {
+      display: inline-block;
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #636366;
+      background: rgba(0, 0, 0, 0.04);
+      padding: 5px 14px;
+      border-radius: 20px;
+      margin-bottom: 22px;
+    }
+
+    .title {
+      font-family: 'DM Sans', 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-size: 38px;
+      font-weight: 600;
+      letter-spacing: -0.025em;
+      line-height: 1.18;
+      color: var(--text-primary);
+      margin-bottom: 12px;
+    }
+
+    .subtitle {
+      font-size: 16px;
+      font-weight: 400;
+      line-height: 1.5;
+      color: var(--text-secondary);
+      letter-spacing: 0.004em;
+      max-width: 320px;
+      margin: 0 auto;
+    }
+
+    /* Input area */
+    .input-group {
+      display: flex;
+      gap: 10px;
+    }
+
+    .input-wrapper {
+      flex: 1;
+      position: relative;
+    }
+
+    .input-wrapper .icon-left {
+      position: absolute;
+      left: 18px;
+      top: 50%;
+      transform: translateY(-50%);
+      pointer-events: none;
+      display: flex;
+      align-items: center;
+    }
+
+    .input-wrapper .icon-left svg {
+      width: 18px;
+      height: 18px;
+      stroke: var(--text-tertiary);
+      stroke-width: 1.5;
+      fill: none;
+      transition: stroke var(--transition);
+    }
+
+    .url-input {
+      width: 100%;
+      height: 54px;
+      padding: 0 48px 0 46px;
+      font-family: 'DM Sans', 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-size: 15px;
+      font-weight: 400;
+      color: var(--text-primary);
+      background: var(--input-bg);
+      border: 1px solid var(--input-border);
+      border-radius: var(--radius-md);
+      outline: none;
+      transition: all var(--transition);
+      letter-spacing: 0.01em;
+    }
+
+    .url-input::placeholder {
+      color: var(--text-tertiary);
+      font-weight: 350;
+    }
+
+    .url-input:focus {
+      border-color: var(--input-focus-border);
+      background: rgba(255, 255, 255, 0.82);
+      box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.03);
+    }
+
+    .url-input:focus ~ .icon-left svg,
+    .input-wrapper:focus-within .icon-left svg {
+      stroke: #555;
+    }
+
+    /* Clear button */
+    .clear-btn {
+      position: absolute;
+      right: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      border: none;
+      background: rgba(0, 0, 0, 0.08);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity var(--transition), background var(--transition);
+      pointer-events: none;
+    }
+
+    .clear-btn.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .clear-btn:hover {
+      background: rgba(0, 0, 0, 0.16);
+    }
+
+    .clear-btn svg {
+      width: 11px;
+      height: 11px;
+      stroke: #666;
+      stroke-width: 2;
+    }
+
+    /* Submit button */
+    .submit-btn {
+      height: 54px;
+      padding: 0 32px;
+      font-family: 'DM Sans', 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-size: 15px;
+      font-weight: 510;
+      letter-spacing: 0.01em;
+      color: var(--btn-text);
+      background: var(--btn-bg);
+      border: none;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all var(--transition);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .submit-btn:hover {
+      background: var(--btn-hover);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14);
+    }
+
+    .submit-btn:active {
+      transform: scale(0.975) translateY(0);
+      transition: all 0.08s ease;
+    }
+
+    .submit-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .submit-btn svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    /* Spinner */
+    .spinner {
+      width: 18px;
+      height: 18px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Result area */
+    .result-area {
+      margin-top: 28px;
+      display: none;
+    }
+
+    .result-area.active {
+      display: block;
+      animation: fadeSlideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .result-inner {
+      background: rgba(0, 0, 0, 0.025);
+      border-radius: var(--radius-sm);
+      padding: 20px 22px;
+      min-height: 80px;
+      max-height: 360px;
+      overflow-y: auto;
+      font-size: 14.5px;
+      line-height: 1.72;
+      color: #333;
+      letter-spacing: 0.012em;
+    }
+
+    .result-inner::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .result-inner::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .result-inner::-webkit-scrollbar-thumb {
+      background: rgba(0, 0, 0, 0.10);
+      border-radius: 3px;
+    }
+
+    /* Error state */
+    .result-inner.error {
+      color: #c0392b;
+      background: rgba(192, 57, 43, 0.04);
+    }
+
+    /* Footer hint */
+    .hint {
+      text-align: center;
+      margin-top: 22px;
+      font-size: 12.5px;
+      color: var(--text-tertiary);
+      letter-spacing: 0.02em;
+    }
+
+    .hint span {
+      font-weight: 500;
+      color: #999;
+    }
+
+    /* Loading state on card */
+    .card.loading .submit-btn {
+      pointer-events: none;
+      opacity: 0.7;
+    }
+
+    /* Responsive */
+    @media (max-width: 560px) {
+      .card {
+        padding: 36px 24px 32px;
+        border-radius: var(--radius-md);
+      }
+
+      .title {
+        font-size: 28px;
+      }
+
+      .subtitle {
+        font-size: 14px;
+      }
+
+      .input-group {
+        flex-direction: column;
+      }
+
+      .submit-btn {
+        justify-content: center;
+        width: 100%;
+      }
+
+      .header {
+        margin-bottom: 28px;
+      }
+    }
+
+    @keyframes fadeSlideIn {
+      from {
+        opacity: 0;
+        transform: translateY(8px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Ambient background orbs -->
+  <div class="ambient-orb orb-1"></div>
+  <div class="ambient-orb orb-2"></div>
+  <div class="ambient-orb orb-3"></div>
+
+  <div class="wrapper">
+    <div class="card" id="card">
+      <!-- Header -->
+      <div class="header">
+        <div class="badge">Powered by AI</div>
+        <h1 class="title">AI 智能总结</h1>
+        <p class="subtitle">粘贴链接，让 AI 为你提炼核心精华</p>
+      </div>
+
+      <!-- Input -->
+      <div class="input-group">
+        <div class="input-wrapper">
+          <span class="icon-left">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <circle cx="11" cy="11" r="8"></circle>
+              <path d="m21 21-4.35-4.35"></path>
+              <path d="M8 7v4m0 0v4m0-4H4m4 0h4" stroke-width="1.2" opacity="0.5"></path>
+            </svg>
+          </span>
+          <input
+            type="url"
+            class="url-input"
+            id="urlInput"
+            placeholder="请在此粘贴视频或网页链接…"
+            autocomplete="off"
+            spellcheck="false"
+          >
+          <button class="clear-btn" id="clearBtn" aria-label="清除">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path d="M18 6 6 18M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
+        <button class="submit-btn" id="submitBtn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+          </svg>
+          开始总结
+        </button>
+      </div>
+
+      <!-- Result -->
+      <div class="result-area" id="resultArea">
+        <div class="result-inner" id="resultInner"></div>
+      </div>
+    </div>
+
+    <p class="hint">支持 <span>视频链接</span> · <span>网页文章</span> · <span>社交媒体</span> 等多种内容</p>
+  </div>
+
+  <script>
+    const urlInput = document.getElementById('urlInput');
+    const clearBtn = document.getElementById('clearBtn');
+    const submitBtn = document.getElementById('submitBtn');
+    const resultArea = document.getElementById('resultArea');
+    const resultInner = document.getElementById('resultInner');
+    const card = document.getElementById('card');
+
+    // Show/hide clear button
+    urlInput.addEventListener('input', () => {
+      if (urlInput.value.trim()) {
+        clearBtn.classList.add('visible');
+      } else {
+        clearBtn.classList.remove('visible');
+      }
+    });
+
+    clearBtn.addEventListener('click', () => {
+      urlInput.value = '';
+      clearBtn.classList.remove('visible');
+      urlInput.focus();
+      resultArea.classList.remove('active');
+    });
+
+    // Submit handler
+    submitBtn.addEventListener('click', () => {
+      const url = urlInput.value.trim();
+      if (!url) {
+        urlInput.focus();
+        urlInput.style.borderColor = 'rgba(192, 57, 43, 0.3)';
+        urlInput.style.boxShadow = '0 0 0 4px rgba(192, 57, 43, 0.05)';
+        setTimeout(() => {
+          urlInput.style.borderColor = '';
+          urlInput.style.boxShadow = '';
+        }, 1200);
+        return;
+      }
+
+      // Set loading state
+      card.classList.add('loading');
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<span class="spinner"></span> 分析中…';
+      resultArea.classList.remove('active');
+      resultInner.classList.remove('error');
+
+      // Simulate AI processing
+      setTimeout(() => {
+        const summary = generateSummary(url);
+        resultInner.textContent = summary;
+        resultInner.classList.remove('error');
+        resultArea.classList.add('active');
+
+        // Reset
+        card.classList.remove('loading');
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = `
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+          </svg>
+          开始总结
+        `;
+
+        // Scroll result into view
+        resultArea.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }, 1800 + Math.random() * 1200);
+    });
+
+    // Keyboard shortcut
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && document.activeElement === urlInput) {
+        e.preventDefault();
+        submitBtn.click();
+      }
+    });
+
+    function generateSummary(url) {
+      const lower = url.toLowerCase();
+
+      if (lower.includes('douyin.com') || lower.includes('tiktok.com') || lower.includes('bilibili.com') || lower.includes('youtube.com') || lower.includes('youtu.be')) {
+        return `🎬 视频内容总结
+
+• 主题：该视频围绕当前热门话题展开论述，观点鲜明，逻辑清晰。
+• 核心观点：作者在 3 分钟内提出了 4 个关键论点，层层递进，辅以数据支撑。
+• 亮点时刻：中段有一段精彩的案例对比，将抽象概念具象化，非常有说服力。
+• 结论：视频最终回归到实用建议，给观众留下了明确的行动指南。
+
+💬 评论区情绪：整体反响积极，约 72% 观众认可视频核心观点。`;
+      }
+
+      if (lower.includes('weixin.qq.com') || lower.includes('mp.weixin.qq.com') || lower.includes('zhihu.com') || lower.includes('medium.com') || lower.includes('wikipedia.org')) {
+        return `📄 文章内容总结
+
+• 标题所提出的问题得到充分展开，全文结构清晰，环环相扣。
+• 关键信息：文章围绕 3 个核心维度展开分析，每个维度均引用了权威数据来源。
+• 独特见解：作者在第二部分提出的"逆向思维"框架令人耳目一新，是该文最有价值的部分。
+• 推荐阅读人群：相关行业从业者、对该领域有基础了解的读者。
+
+⏱️ 阅读时间估算：全文约 2800 字，建议精读 8 分钟。`;
+      }
+
+      if (lower.includes('xiaohongshu.com') || lower.includes('xhslink.com') || lower.includes('weibo.com') || lower.includes('twitter.com') || lower.includes('x.com')) {
+        return `📱 社交内容总结
+
+• 内容调性：轻松活泼，图文配合默契，互动氛围良好。
+• 正文要点：分享了 5 个实用技巧，每个都有配图说明，可操作性强。
+• 用户反馈：评论区互动活跃，其中关于第 3 点的讨论最为集中。
+• 可信度评估：内容创作者在该领域有一定影响力，所述信息基本可查证。`;
+      }
+
+      return `📋 页面内容总结
+
+• 该页面以简洁结构呈现了清晰的信息层次。
+• 主要内容聚焦于用户关心的核心问题，回答简洁直接。
+• 页面结构和导航逻辑合理，信息查找成本低。
+• 综合评价：内容质量良好，信息密度适中，适合快速浏览。
+
+💡 提示：如需更详细的分析，可以进一步指定关注的维度。`;
+    }
+
+    // Auto-focus on load
+    urlInput.focus();
+  </script>
+</body>
+</html>
