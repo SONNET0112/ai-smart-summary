@@ -403,6 +403,147 @@
         transform: translateY(0);
       }
     }
+
+    /* ── 设置按钮（右上角）── */
+    .settings-trigger {
+      position: fixed;
+      top: 24px;
+      right: 24px;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      background: rgba(255, 255, 255, 0.6);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #888;
+      transition: all var(--transition);
+      z-index: 10;
+    }
+
+    .settings-trigger:hover {
+      color: #444;
+      border-color: rgba(0, 0, 0, 0.15);
+      background: rgba(255, 255, 255, 0.85);
+      transform: rotate(30deg);
+    }
+
+    /* ── 设置弹窗 ── */
+    .settings-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.25);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      animation: fadeIn 0.2s ease;
+    }
+
+    .settings-dialog {
+      background: #fff;
+      border-radius: var(--radius-md);
+      padding: 32px;
+      max-width: 420px;
+      width: 90%;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+      animation: fadeSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .settings-dialog h3 {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      letter-spacing: -0.01em;
+    }
+
+    .settings-dialog p {
+      font-size: 13.5px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      margin-bottom: 20px;
+    }
+
+    .settings-input {
+      width: 100%;
+      height: 46px;
+      padding: 0 16px;
+      font-family: 'DM Sans', 'Noto Sans SC', -apple-system, sans-serif;
+      font-size: 14px;
+      border: 1px solid rgba(0, 0, 0, 0.12);
+      border-radius: 12px;
+      outline: none;
+      transition: all var(--transition);
+      margin-bottom: 10px;
+    }
+
+    .settings-input:focus {
+      border-color: rgba(0, 0, 0, 0.25);
+      box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.03);
+    }
+
+    .settings-links {
+      margin-bottom: 20px;
+    }
+
+    .settings-links a {
+      font-size: 12.5px;
+      color: var(--text-secondary);
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+
+    .settings-links a:hover {
+      color: var(--text-primary);
+    }
+
+    .settings-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    .settings-btn {
+      height: 38px;
+      padding: 0 22px;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 510;
+      border-radius: 12px;
+      border: none;
+      cursor: pointer;
+      transition: all var(--transition);
+      letter-spacing: 0.01em;
+    }
+
+    .settings-btn.cancel {
+      background: rgba(0, 0, 0, 0.05);
+      color: #666;
+    }
+
+    .settings-btn.cancel:hover {
+      background: rgba(0, 0, 0, 0.1);
+    }
+
+    .settings-btn.save {
+      background: #1a1a1a;
+      color: #fff;
+    }
+
+    .settings-btn.save:hover {
+      background: #2d2d2f;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
   </style>
 </head>
 <body>
@@ -470,13 +611,66 @@
     const resultInner = document.getElementById('resultInner');
     const card = document.getElementById('card');
 
-    // Show/hide clear button
+    // ── API Key 管理 ──
+    const STORAGE_KEY = 'ai_summary_apikey';
+    let apiKey = localStorage.getItem(STORAGE_KEY) || '';
+
+    // 页面加载时若没有 key，弹窗提示
+    if (!apiKey) {
+      setTimeout(showSettings, 600);
+    }
+
+    // ── 设置弹窗 ──
+    function showSettings() {
+      const existing = document.querySelector('.settings-overlay');
+      if (existing) existing.remove();
+
+      const overlay = document.createElement('div');
+      overlay.className = 'settings-overlay';
+      overlay.innerHTML = `
+        <div class="settings-dialog">
+          <h3>设置 API Key</h3>
+          <p>使用 Anthropic API 进行智能总结。你的 Key 仅存储在浏览器本地，不会上传到任何服务器。</p>
+          <input type="password" class="settings-input" placeholder="sk-ant-api03-…" value="${apiKey}">
+          <div class="settings-links">
+            <a href="https://console.anthropic.com/" target="_blank">获取 API Key ↗</a>
+          </div>
+          <div class="settings-actions">
+            <button class="settings-btn cancel">取消</button>
+            <button class="settings-btn save">保存</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(overlay);
+
+      const input = overlay.querySelector('.settings-input');
+      overlay.querySelector('.save').addEventListener('click', () => {
+        apiKey = input.value.trim();
+        localStorage.setItem(STORAGE_KEY, apiKey);
+        overlay.remove();
+        if (apiKey) urlInput.focus();
+      });
+      overlay.querySelector('.cancel').addEventListener('click', () => {
+        overlay.remove();
+        if (apiKey) urlInput.focus();
+      });
+      overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) overlay.remove();
+      });
+      setTimeout(() => input.focus(), 100);
+    }
+
+    // ── 右上角设置按钮 ──
+    const settingsBtn = document.createElement('button');
+    settingsBtn.className = 'settings-trigger';
+    settingsBtn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`;
+    settingsBtn.title = 'API 设置';
+    settingsBtn.addEventListener('click', showSettings);
+    document.body.appendChild(settingsBtn);
+
+    // ── 清除按钮 ──
     urlInput.addEventListener('input', () => {
-      if (urlInput.value.trim()) {
-        clearBtn.classList.add('visible');
-      } else {
-        clearBtn.classList.remove('visible');
-      }
+      clearBtn.classList.toggle('visible', !!urlInput.value.trim());
     });
 
     clearBtn.addEventListener('click', () => {
@@ -486,50 +680,131 @@
       resultArea.classList.remove('active');
     });
 
-    // Submit handler
-    submitBtn.addEventListener('click', () => {
+    // ── 设置按钮状态 ──
+    function setLoading(isLoading) {
+      if (isLoading) {
+        card.classList.add('loading');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="spinner"></span> 分析中…';
+        resultArea.classList.remove('active');
+        resultInner.classList.remove('error');
+      } else {
+        card.classList.remove('loading');
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>开始总结`;
+      }
+    }
+
+    // ── 核心：抓取 + 总结 ──
+    submitBtn.addEventListener('click', async () => {
       const url = urlInput.value.trim();
       if (!url) {
         urlInput.focus();
         urlInput.style.borderColor = 'rgba(192, 57, 43, 0.3)';
         urlInput.style.boxShadow = '0 0 0 4px rgba(192, 57, 43, 0.05)';
-        setTimeout(() => {
-          urlInput.style.borderColor = '';
-          urlInput.style.boxShadow = '';
-        }, 1200);
+        setTimeout(() => { urlInput.style.borderColor = ''; urlInput.style.boxShadow = ''; }, 1200);
         return;
       }
 
-      // Set loading state
-      card.classList.add('loading');
-      submitBtn.disabled = true;
-      submitBtn.innerHTML = '<span class="spinner"></span> 分析中…';
-      resultArea.classList.remove('active');
+      if (!apiKey) {
+        showSettings();
+        return;
+      }
+
+      setLoading(true);
       resultInner.classList.remove('error');
 
-      // Simulate AI processing
-      setTimeout(() => {
-        const summary = generateSummary(url);
-        resultInner.textContent = summary;
-        resultInner.classList.remove('error');
+      try {
+        // 第一步：通过 Jina 抓取页面内容
+        resultInner.textContent = '⏳ 正在抓取页面内容…';
         resultArea.classList.add('active');
 
-        // Reset
-        card.classList.remove('loading');
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = `
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polygon points="5 3 19 12 5 21 5 3"></polygon>
-          </svg>
-          开始总结
-        `;
+        const jinaUrl = `https://r.jina.ai/${url}`;
+        const jinaRes = await fetch(jinaUrl, {
+          headers: { 'Accept': 'text/markdown' }
+        });
 
-        // Scroll result into view
+        if (!jinaRes.ok) {
+          throw new Error(`页面抓取失败 (HTTP ${jinaRes.status})`);
+        }
+
+        const rawContent = await jinaRes.text();
+        if (!rawContent || rawContent.length < 50) {
+          throw new Error('页面内容为空或过短，无法总结');
+        }
+
+        // 截断过长内容（token 成本控制，最多 8000 字符）
+        const maxChars = 8000;
+        const content = rawContent.length > maxChars
+          ? rawContent.slice(0, maxChars) + '\n\n[内容过长，已截断前 8000 字符]'
+          : rawContent;
+
+        resultInner.textContent = '🤖 正在 AI 智能总结…';
+
+        // 第二步：调用 Anthropic API 总结
+        const systemPrompt = `你是一个专业的内容总结助手。请根据提供的网页内容，用中文给出简洁清晰的总结。按以下格式输出：
+
+1. 📌 核心主题：一句话概括
+2. 📝 关键要点：用列表列出 3-5 个关键信息点
+3. 💡 亮点/洞察：1-2 句话
+4. 🏷 内容类型标签：用 2-3 个标签
+
+注意：
+- 如果内容是视频页面，根据标题、描述、评论等可用信息总结
+- 如果内容看起来不完整或混乱，如实说明
+- 保持客观，不要添加原文没有的信息
+- 控制总字数在 300 字以内`;
+
+        const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': apiKey,
+            'anthropic-version': '2023-06-01',
+            'anthropic-dangerous-direct-browser-access': 'true'
+          },
+          body: JSON.stringify({
+            model: 'claude-haiku-4-5-20251001',
+            max_tokens: 600,
+            system: systemPrompt,
+            messages: [
+              { role: 'user', content: `以下是需要总结的网页内容：\n\n${content}` }
+            ]
+          })
+        });
+
+        if (!aiRes.ok) {
+          const errData = await aiRes.json().catch(() => ({}));
+          if (aiRes.status === 401) {
+            localStorage.removeItem(STORAGE_KEY);
+            apiKey = '';
+            throw new Error('API Key 无效，请重新设置');
+          }
+          throw new Error(`AI API 请求失败 (HTTP ${aiRes.status}): ${errData.error?.message || '未知错误'}`);
+        }
+
+        const aiData = await aiRes.json();
+        const summary = aiData.content?.[0]?.text || '(AI 返回了空结果)';
+
+        // 显示结果
+        resultInner.innerHTML = summary
+          .replace(/\n/g, '<br>')
+          .replace(/^(\d+\.\s)/gm, '<strong>$1</strong>');
+        resultInner.classList.remove('error');
+        resultArea.classList.add('active');
         resultArea.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      }, 1800 + Math.random() * 1200);
+
+      } catch (err) {
+        console.error('总结失败:', err);
+        resultInner.textContent = `❌ ${err.message}`;
+        resultInner.classList.add('error');
+        resultArea.classList.add('active');
+      } finally {
+        setLoading(false);
+      }
     });
 
-    // Keyboard shortcut
+    // ── 键盘快捷键 ──
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && document.activeElement === urlInput) {
         e.preventDefault();
@@ -537,51 +812,6 @@
       }
     });
 
-    function generateSummary(url) {
-      const lower = url.toLowerCase();
-
-      if (lower.includes('douyin.com') || lower.includes('tiktok.com') || lower.includes('bilibili.com') || lower.includes('youtube.com') || lower.includes('youtu.be')) {
-        return `🎬 视频内容总结
-
-• 主题：该视频围绕当前热门话题展开论述，观点鲜明，逻辑清晰。
-• 核心观点：作者在 3 分钟内提出了 4 个关键论点，层层递进，辅以数据支撑。
-• 亮点时刻：中段有一段精彩的案例对比，将抽象概念具象化，非常有说服力。
-• 结论：视频最终回归到实用建议，给观众留下了明确的行动指南。
-
-💬 评论区情绪：整体反响积极，约 72% 观众认可视频核心观点。`;
-      }
-
-      if (lower.includes('weixin.qq.com') || lower.includes('mp.weixin.qq.com') || lower.includes('zhihu.com') || lower.includes('medium.com') || lower.includes('wikipedia.org')) {
-        return `📄 文章内容总结
-
-• 标题所提出的问题得到充分展开，全文结构清晰，环环相扣。
-• 关键信息：文章围绕 3 个核心维度展开分析，每个维度均引用了权威数据来源。
-• 独特见解：作者在第二部分提出的"逆向思维"框架令人耳目一新，是该文最有价值的部分。
-• 推荐阅读人群：相关行业从业者、对该领域有基础了解的读者。
-
-⏱️ 阅读时间估算：全文约 2800 字，建议精读 8 分钟。`;
-      }
-
-      if (lower.includes('xiaohongshu.com') || lower.includes('xhslink.com') || lower.includes('weibo.com') || lower.includes('twitter.com') || lower.includes('x.com')) {
-        return `📱 社交内容总结
-
-• 内容调性：轻松活泼，图文配合默契，互动氛围良好。
-• 正文要点：分享了 5 个实用技巧，每个都有配图说明，可操作性强。
-• 用户反馈：评论区互动活跃，其中关于第 3 点的讨论最为集中。
-• 可信度评估：内容创作者在该领域有一定影响力，所述信息基本可查证。`;
-      }
-
-      return `📋 页面内容总结
-
-• 该页面以简洁结构呈现了清晰的信息层次。
-• 主要内容聚焦于用户关心的核心问题，回答简洁直接。
-• 页面结构和导航逻辑合理，信息查找成本低。
-• 综合评价：内容质量良好，信息密度适中，适合快速浏览。
-
-💡 提示：如需更详细的分析，可以进一步指定关注的维度。`;
-    }
-
-    // Auto-focus on load
     urlInput.focus();
   </script>
 </body>
