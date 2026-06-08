@@ -694,9 +694,22 @@
     const STORAGE_KEY = 'ai_summary_apikey';
     let apiKey = localStorage.getItem(STORAGE_KEY) || '';
 
-    // 有 Key 直接用；没有才弹窗
+    // 没有 Key 时确保弹窗
+    function ensureKey() {
+      if (!apiKey) {
+        showSettings();
+        return false;
+      }
+      return true;
+    }
+
     if (!apiKey) {
-      setTimeout(showSettings, 400);
+      // 页面加载后弹窗
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => showSettings());
+      } else {
+        showSettings();
+      }
     }
 
     // ── 设置弹窗 ──
@@ -873,10 +886,7 @@
         return;
       }
 
-      if (!apiKey) {
-        showSettings();
-        return;
-      }
+      if (!ensureKey()) return;
 
       setLoading(true);
       resultInner.classList.remove('error');
