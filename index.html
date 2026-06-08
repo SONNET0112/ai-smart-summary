@@ -652,10 +652,10 @@
       overlay.innerHTML = `
         <div class="settings-dialog">
           <h3>设置 API Key</h3>
-          <p>使用 Anthropic API 进行智能总结。你的 Key 仅存储在浏览器本地，不会上传到任何服务器。</p>
-          <input type="password" class="settings-input" placeholder="sk-ant-api03-…" value="${apiKey}">
+          <p>使用 DeepSeek API 进行智能总结。你的 Key 仅存储在浏览器本地，不会上传到任何服务器。</p>
+          <input type="password" class="settings-input" placeholder="sk-…" value="${apiKey}">
           <div class="settings-links">
-            <a href="https://console.anthropic.com/" target="_blank">获取 API Key ↗</a>
+            <a href="https://platform.deepseek.com/api_keys" target="_blank">获取 API Key ↗</a>
           </div>
           <div class="settings-actions">
             <button class="settings-btn cancel">取消</button>
@@ -853,7 +853,7 @@
             : rawContent;
         }
 
-        // ── 调用 Anthropic API 总结 ──
+        // ── 调用 DeepSeek API 总结 ──
         const systemPrompt = `你是一个专业的内容总结助手。请根据提供的内容，用中文给出简洁清晰的总结。按以下格式输出：
 
 1. 📌 核心主题：一句话概括
@@ -867,19 +867,17 @@
 - 保持客观，不要添加原文没有的信息
 - 控制总字数在 300 字以内`;
 
-        const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
+        const aiRes = await fetch('https://api.deepseek.com/chat/completions', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'x-api-key': apiKey,
-            'anthropic-version': '2023-06-01',
-            'anthropic-dangerous-direct-browser-access': 'true'
+            'Authorization': `Bearer ${apiKey}`
           },
           body: JSON.stringify({
-            model: 'claude-haiku-4-5-20251001',
+            model: 'deepseek-chat',
             max_tokens: 600,
-            system: systemPrompt,
             messages: [
+              { role: 'system', content: systemPrompt },
               { role: 'user', content: `以下是需要总结的内容：\n\n${content}` }
             ]
           })
@@ -892,11 +890,11 @@
             apiKey = '';
             throw new Error('API Key 无效，请重新设置');
           }
-          throw new Error(`AI API 请求失败 (HTTP ${aiRes.status}): ${errData.error?.message || '未知错误'}`);
+          throw new Error(`DeepSeek API 请求失败 (HTTP ${aiRes.status}): ${errData.error?.message || '未知错误'}`);
         }
 
         const aiData = await aiRes.json();
-        const summary = aiData.content?.[0]?.text || '(AI 返回了空结果)';
+        const summary = aiData.choices?.[0]?.message?.content || '(AI 返回了空结果)');
 
         resultInner.innerHTML = summary
           .replace(/\n/g, '<br>')
